@@ -8,7 +8,6 @@ setup(name='fnordstalk',
     author='Stephen Holiday',
     author_email='stephen.holiday@gmail.com',
     url='https://github.com/sholiday/fnordstalk',
-    py_modules=['monitor.py'],
     install_requires=(
         'pyfnordmetric',
         'beanstalkc'
