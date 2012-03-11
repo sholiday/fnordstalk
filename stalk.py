@@ -46,17 +46,17 @@ class Stalk:
         "current-using" : {"title":"Using", "type":"current"},
         "total-jobs" : {"title":"Total Jobs", "type":"total"},
     }
-    global_gauges = [
-        {"title":"Commands", "gauges":["cmd-bury", "cmd-put", "cmd-reserve"], "type":"timeline", "width":50},
-        {"title":"Users", "gauges":["current-jobs-ready", "current-jobs-buried"], "type":"timeline", "width":50},
-        {"title":"Jobs", "gauges":["total-jobs"], "type":"timeline", "width":50},
-        ]
+    global_widgets = [
+        {"title":"Commands", "gauges":["cmd-bury", "cmd-put", "cmd-reserve"], "type":"timeline", "width":50, "time":"minute"},
+        {"title":"Users", "gauges":["current-jobs-ready", "current-jobs-buried"], "type":"timeline", "width":50, "time":"minute"},
+        {"title":"Jobs", "gauges":["total-jobs"], "type":"timeline", "width":50, "isTotal":True, "time":"hour"},
+    ]
         
-    tube_gauges = [
-        {"title":"Jobs", "gauges":["current-jobs-ready", "current-jobs-buried"], "type":"timeline", "width":50},
-        {"title":"Users", "gauges":["current-watching", "current-using"], "type":"timeline", "width":50},
-        {"title":"Jobs Total", "gauges":["total-jobs"], "type":"timeline", "width":50},
-        ]
+    tube_widgets = [
+        {"title":"Jobs", "gauges":["current-jobs-ready", "current-jobs-buried"], "type":"timeline", "width":50, "time":"minute"},
+        {"title":"Users", "gauges":["current-watching", "current-using"], "type":"timeline", "width":50, "time":"hour"},
+        {"title":"Jobs Total", "gauges":["total-jobs"], "type":"timeline", "width":50, "time":"hour"},
+    ]
     
                     
     def __init__(self, beanstalk_host = "localhost", beanstalk_port = 11300,
@@ -118,18 +118,25 @@ class Stalk:
                 ret += self._generate_gauges(name, conf["title"], conf['type'])
                 ret += self._generate_event_listener(name, conf["title"], conf['type'])
                 ret += '\n'
-                
-        ret += self._generate_widget('Thing', ['fnord', 'fnordd'])
+        
+        for widget in self.global_widgets:
+            gauges = map(lambda gauge: 'fnordstalk_global_%s_%s'%(gauge.replace("-", "_"), widget['time']), widget['gauges'])
+            #{"title":"Commands", "gauges":["cmd-bury", "cmd-put", "cmd-reserve"], "type":"timeline", "width":50},
+            ret += self._generate_widget(widget['title'], gauges, widget['width'], widget['type'])
+            
+        for tube in tubes:
+            for widget in self.tube_widgets:
+                gauges = map(lambda gauge: 'fnordstalk_%s_%s_%s'%(tube, gauge.replace("-", "_"), widget['time']), widget['gauges'])
+                #{"title":"Commands", "gauges":["cmd-bury", "cmd-put", "cmd-reserve"], "type":"timeline", "width":50},
+                ret += self._generate_widget('%s - %s'%(tube, widget['title']), gauges, widget['width'], widget['type'])
+        #ret += self._generate_widget('Thing', ['fnord', 'fnordd'])
         return ret
         
     def _generate_gauges(self, name, title, stat_type):
         ret =  '# fnordstalk Gauge for %s\n'%(title)
-        if (stat_type == "current"):
-            ret += 'gauge :%s_minute, tick => 60, :title => "%s (min)"\n'%(name, title)
-            ret += 'gauge :%s_hour, tick => 1.hour.to_i, :title => "%s (hr)"\n'%(name, title)
-            ret += 'gauge :%s_day, tick => 1.day.to_i, :title => "%s (day)"\n'%(name, title)
-        elif (stat_type == "total"):
-            ret += 'gauge :%s, tick => 60, :title => "%s"\n'%(name, title)
+        ret += 'gauge :%s_minute, :tick => 60, :title => "%s (min)"\n'%(name, title)
+        ret += 'gauge :%s_hour, :tick => 1.hour.to_i, :title => "%s (hr)"\n'%(name, title)
+        ret += 'gauge :%s_day, :tick => 1.day.to_i, :title => "%s (day)"\n'%(name, title)
         ret += '\n'
         return ret
         
@@ -141,7 +148,9 @@ class Stalk:
             ret += '  incr :%s_hour, data[:value]\n'%name
             ret += '  incr :%s_day, data[:value]\n'%name
         elif (stat_type == "total"):
-            ret += '  set_value(:%s, data[:value])\n'%name
+            ret += '  set_value(:%s_minute, data[:value])\n'%name
+            ret += '  set_value(:%s_hour, data[:value])\n'%name
+            ret += '  set_value(:%s_day, data[:value])\n'%name
         ret += 'end\n'
         return ret
         

@@ -1,6 +1,14 @@
 # fnordstalk
 Monitor your beanstalk instance and report to fnordmetric.
 
+## Generating a Config
+It can take a bit of work to generate a configuration,
+so there's a cool option that looks at your beanstalk instance and spits out a basic configuration.
+
+    python fnordstalk.py --generate_config
+    
+And bam, a huge config pops out, an example is in `doc/example.rb`.
+
 
 ## Tube Stats
 * cmd-pause-tube

@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 setup(name='fnordstalk',
-    version='0.0.2',
+    version='0.0.3',
     description='A tool to save beanstalk stats to fnordmetric',
     author='Stephen Holiday',
     author_email='stephen.holiday@gmail.com',
