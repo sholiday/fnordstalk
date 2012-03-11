@@ -27,6 +27,38 @@ class Stalk:
     """
     _beanstalk = None
     _fnordmetric = None
+    global_collect = {
+        "cmd-bury" : {"title": "Global Buries", "type":"total"},
+        "cmd-put" : {"title": "Global Puts", "type":"total"},
+        "cmd-reserve" : {"title": "Global Reserves", "type":"total"},
+        "current-connections" : {"title": "Current Connections", "type":"current"},
+        "current-jobs-buried" : {"title": "Current Jobs Buried", "type":"current"},
+        "current-jobs-ready" : {"title": "Current Jobs Ready", "type":"current"},
+        "current-workers" : {"title": "Current Workers", "type":"current"},
+        "job-timeouts" : {"title": "Job Timeouts", "type":"total"},
+        "total-jobs" : {"title": "Global Jobs", "type":"total"},
+        }
+    
+    tube_collect = {
+        "current-jobs-buried" : {"title":"Burried", "type":"current"},
+        "current-jobs-ready" : {"title":"Ready", "type":"current"},
+        "current-watching" : {"title":"Watchers", "type":"current"},
+        "current-using" : {"title":"Using", "type":"current"},
+        "total-jobs" : {"title":"Total Jobs", "type":"total"},
+    }
+    global_gauges = [
+        {"title":"Commands", "gauges":["cmd-bury", "cmd-put", "cmd-reserve"], "type":"timeline", "width":50},
+        {"title":"Users", "gauges":["current-jobs-ready", "current-jobs-buried"], "type":"timeline", "width":50},
+        {"title":"Jobs", "gauges":["total-jobs"], "type":"timeline", "width":50},
+        ]
+        
+    tube_gauges = [
+        {"title":"Jobs", "gauges":["current-jobs-ready", "current-jobs-buried"], "type":"timeline", "width":50},
+        {"title":"Users", "gauges":["current-watching", "current-using"], "type":"timeline", "width":50},
+        {"title":"Jobs Total", "gauges":["total-jobs"], "type":"timeline", "width":50},
+        ]
+    
+                    
     def __init__(self, beanstalk_host = "localhost", beanstalk_port = 11300,
                  redis_host = "localhost", redis_port = 6379, redis_db = 0):
         self._beanstalk = beanstalkc.Connection(host = beanstalk_host,
@@ -52,12 +84,7 @@ class Stalk:
         """
         return self._beanstalk.tubes()
         
-    def send_stats_global(self,
-        collect = ["cmd-bury", "cmd-put", "cmd-release",
-                   "cmd-reserve", "current-connections",
-                   "current-jobs-buried", "current-jobs-ready",
-                   "current-workers", "job-timeouts", "total-jobs"]
-        ):
+    def send_stats_global(self, collect = global_collect.keys()):
         """
         Sends stats for the beanstalkd process
         """
@@ -67,10 +94,7 @@ class Stalk:
         for stat in collect:
             self.event_tube("global", stat, stats[stat])
         
-    def send_stats_tube(self, tube,
-        collect = ["current-jobs-buried", "current-jobs-ready",
-                   "current-watching", "current-using", "total-jobs"]
-        ):
+    def send_stats_tube(self, tube, collect = tube_collect.keys()):
         """
         Send stats for a specified tube.
         """
@@ -79,7 +103,65 @@ class Stalk:
         
         for stat in collect:
             self.event_tube(tube, stat, stats[stat])
-
+            
+    def generate_config(self, tubes = ['markArticleRead', 'recommendArticle', 'cleanArticle', 'regenerateModels', 'addFeed', 'updateFeed', 'updateUserFeeds', 'notifySubscribers']):
+        ret = '# fnordstalk config\n'
+        for name, conf in self.global_collect.items():
+            name = 'fnordstalk_global_%s'%(name.replace("-", "_"))
+            ret += self._generate_gauges(name, conf["title"], conf['type'])
+            ret += self._generate_event_listener(name, conf["title"], conf['type'])
+            ret += '\n'
+        
+        for tube in tubes:
+            for name, conf in self.tube_collect.items():
+                name = 'fnordstalk_%s_%s'%(tube, name.replace("-", "_"))
+                ret += self._generate_gauges(name, conf["title"], conf['type'])
+                ret += self._generate_event_listener(name, conf["title"], conf['type'])
+                ret += '\n'
+                
+        ret += self._generate_widget('Thing', ['fnord', 'fnordd'])
+        return ret
+        
+    def _generate_gauges(self, name, title, stat_type):
+        ret =  '# fnordstalk Gauge for %s\n'%(title)
+        if (stat_type == "current"):
+            ret += 'gauge :%s_minute, tick => 60, :title => "%s (min)"\n'%(name, title)
+            ret += 'gauge :%s_hour, tick => 1.hour.to_i, :title => "%s (hr)"\n'%(name, title)
+            ret += 'gauge :%s_day, tick => 1.day.to_i, :title => "%s (day)"\n'%(name, title)
+        elif (stat_type == "total"):
+            ret += 'gauge :%s, tick => 60, :title => "%s"\n'%(name, title)
+        ret += '\n'
+        return ret
+        
+    def _generate_event_listener(self, name, title, stat_type):
+        ret =  '# fnordstalk Event Listener for %s\n'%title
+        ret += 'event(:%s) do\n'%name
+        if (stat_type == "current"):
+            ret += '  incr :%s_minute, data[:value]\n'%name
+            ret += '  incr :%s_hour, data[:value]\n'%name
+            ret += '  incr :%s_day, data[:value]\n'%name
+        elif (stat_type == "total"):
+            ret += '  set_value(:%s, data[:value])\n'%name
+        ret += 'end\n'
+        return ret
+        
+    def _generate_widget(self, title, gauges, width=50, widget_type = 'timeline', offsets = None):
+        gauges = '[' + ', '.join(map(lambda gauge: ':'+gauge, gauges)) + ']'
+        ret = '# Widget for %s\n' % title
+        ret += 'widget "Beanstalk", {\n'
+        ret += '  :title => "%s",\n' % title
+        ret += '  :type => :%s,\n' % widget_type
+        ret += '  :width => %s,\n' % width
+        ret += '  :gauges => %s,\n' % gauges
+        ret += '  :include_current => true,\n'
+        ret += '  :autoupdate => 60\n'
+        if offsets is not None:
+            ret += '  :offsets => %s,'%('[' + ','.join(offsets
+            
+            ) + ']')
+        ret += '}\n'
+        ret += '\n'
+        return ret
 if __name__ == "__main__":
     stalk = Stalk()
     

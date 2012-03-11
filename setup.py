@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 setup(name='fnordstalk',
-    version='0.0.1',
+    version='0.0.2',
     description='A tool to save beanstalk stats to fnordmetric',
     author='Stephen Holiday',
     author_email='stephen.holiday@gmail.com',
@@ -18,6 +18,7 @@ setup(name='fnordstalk',
                'fnordstalk = fnordstalk:main',
            ]
        },
+   py_modules=['stalk'],
    classifiers=[
          'Development Status :: 3 - Alpha',
          'Intended Audience :: Developers',
@@ -30,7 +31,6 @@ setup(name='fnordstalk',
          'Programming Language :: Python',
          'Topic :: System :: Monitoring',
    ],
-   download_url="https://github.com/sholiday/fnordstalk/tarball/master",
    long_description = """
    A tool to save beanstalk stats to fnordmetric
    """

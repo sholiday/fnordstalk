@@ -52,7 +52,8 @@ def main(argv=None):
                 "beanstalk_port=",
                 "redis_host=",
                 'redis_port=',
-                'redis_db='
+                'redis_db=',
+                'generate_config'
                 ])
         except getopt.error, msg:
             raise Usage(msg)
@@ -62,6 +63,7 @@ def main(argv=None):
         redis_host = "localhost"
         redis_port = 6379
         redis_db = 0
+        generate_config = False
 
         # option processing
         for option, value in opts:
@@ -88,15 +90,19 @@ def main(argv=None):
                     redis_db = int(value)
                 except:
                     Usage("db must be an integer")
-            
-    
+            if option in ("--generate_config"):
+                generate_config = True
+        
         # Start the actual work
         stalk = Stalk(beanstalk_host, beanstalk_port,
                       redis_host, redis_port, redis_db)
-
-        stalk.send_stats_global()
-        for tube in stalk.tubes():
-            stalk.send_stats_tube(tube)
+        
+        if generate_config:
+            print stalk.generate_config()
+        else:
+            stalk.send_stats_global()
+            for tube in stalk.tubes():
+                stalk.send_stats_tube(tube)
     
     except Usage, err:
         print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
