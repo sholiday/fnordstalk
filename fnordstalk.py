@@ -22,6 +22,8 @@ import getopt
 import re
 import sys
 from stalk import Stalk
+import datetime
+import time
 
 help_message = '''
 fnordstalk
@@ -100,10 +102,13 @@ def main(argv=None):
         if generate_config:
             print stalk.generate_config()
         else:
-            stalk.send_stats_global()
-            for tube in stalk.tubes():
-                stalk.send_stats_tube(tube)
-    
+            while True:
+                stalk.send_stats_global()
+                for tube in stalk.tubes():
+                    stalk.send_stats_tube(tube)
+                print '%s\tSent to beanstalk'%(datetime.datetime.now().isoformat())
+                # TODO(sholiday): much better ways to do this...
+                time.sleep(60)
     except Usage, err:
         print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
         print >> sys.stderr, "\t for help use --help"

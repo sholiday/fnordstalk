@@ -74,7 +74,6 @@ class Stalk:
         self._event_num(eventtype, value)
     
     def _event_num(self, eventtype, value):
-        print (eventtype, value)
         event = {"_type":eventtype, "value":value}
         self._fnordmetric.queue_event(event)
     
